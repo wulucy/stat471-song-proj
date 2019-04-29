@@ -10,3 +10,5 @@ db <- dbConnect(sqlite.driver,
 tables <- dbListTables(db)
 acoustic.tb <- dbReadTable(db,"acoustic_features")
 albums.tb <- dbReadTable(db,"albums")
+
+# commiting
