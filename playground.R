@@ -100,7 +100,7 @@ dim(df2000)
 
 # Create season factor
 # Winter = 12, 1, 2; Spring = 3, 4, 5, Summer = 6,7,8 Fall = 9, 10, 11
-df2000.seaons <- df2000 %>%
+df2000.seasons <- df2000 %>%
   mutate(Month=as.numeric(format(WeekID, "%m"))) %>%
   mutate(Season=
            case_when(
