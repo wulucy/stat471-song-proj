@@ -1,0 +1,56 @@
+---
+title: "EDA Writeup"
+author: "Lucy Wu"
+date: "5/5/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+
+data <- read.csv('df2000_grouped_morefactors.csv')
+```
+
+
+We begin by exploring the relationships between various factors and the song popularity.
+
+First, we examine whether Spotify's analyzed characteristics (acousticness, danceability, energy, instrumentalness, liveness, loudness, speechiness, and valence) have any relationship to a song's popularity.
+
+```{r}
+data %>%
+  group_by(Peak.Position) %>%
+  summarize(count=n())
+```
+
+
+```{r}
+data.spotify <- data %>%
+  select(c(Peak.Position, acousticness, danceability, energy, instrumentalness, 
+           liveness, loudness, speechiness, valence)) %>%
+  group_by(`Peak.Position`) %>%
+  summarize(avg.acousticness=mean(acousticness), avg.danceability=mean(danceability), 
+            avg.energy=mean(energy), avg.instrumentalness=mean(instrumentalness),
+            avg.liveness=mean(liveness), avg.loudness=mean(loudness),
+            avg.speechiness=mean(speechiness), avg.valence=mean(valence))
+
+ggplot(data.spotify, aes(x=Peak.Position)) + 
+  geom_line(aes(y=avg.acousticness, color="avg.acousticness")) + 
+  geom_line(aes(y=avg.danceability, color="avg.danceability")) + 
+  geom_line(aes(y=avg.energy, color="avg.energy")) + 
+  geom_line(aes(y=avg.instrumentalness, color="avg.instrumentalness")) + 
+  geom_line(aes(y=avg.liveness, color="avg.liveness")) + 
+#  geom_line(aes(y=avg.loudness, color="avg.loudness")) + 
+  geom_line(aes(y=avg.speechiness, color="avg.speechiness")) + 
+  geom_line(aes(y=avg.valence, color="avg.valence"))
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
