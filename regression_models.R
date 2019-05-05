@@ -1,5 +1,7 @@
+df2000_grouped <- read.csv('df2000_grouped_morefactors.csv')
+
 # Linear regression - AZ
-lm_df <- df2000_grouped_grouped %>%
+lm_df <- df2000_grouped %>%
   select(-artist, -song, -WeekID, -Weeks.on.Chart)
 
 library(leaps)
