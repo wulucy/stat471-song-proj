@@ -151,5 +151,4 @@ for (idx in 1:nrow(df2000_grouped)) {
 }
 
 df2000.seasons$artist.pop <- artist.pop.list
-
 write.csv(df2000.seasons, 'df2000_grouped_morefactors.csv')
