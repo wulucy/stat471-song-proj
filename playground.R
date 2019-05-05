@@ -112,4 +112,21 @@ df2000.seasons <- df2000 %>%
                )
   )
 
+# Create artist popularity factor
+# artist.pop = number of hot 100 songs by artist in past 3 years
+library(lubridate)
+
+df1997 <- as.data.frame(subset(merged.tb2, format(WeekID,"%Y")>=1997))
+df1997 <- df1997[order(df1997$WeekID), ] # get songs since 1997
+
+artist.pop.list <- c()
+for (idx in 1:nrow(df2000)) {
+  WeekID <- df2000[idx, "WeekID"]
+  artist <- df2000[idx, "artist"]
+  three.y.earlier <- WeekID %m-% months(12*3)
+  artist.pop <- nrow(df1997[(df1997$artist == artist) & (df1997$WeekID < WeekID) & (df1997$WeekID >= three.y.earlier),])
+  artist.pop.list <- c(artist.pop.list, artist.pop)
+}
+
+df2000.seasons$artist.pop <- artist.pop.list
   
