@@ -1,4 +1,7 @@
+# Load library and initialize
 library(RSQLite)
+library(dplyr)
+library(lubridate)
 
 filename <- "billboard-200.db"
 sqlite.driver <- dbDriver("SQLite")
@@ -121,7 +124,7 @@ df2000_grouped = as.data.frame(df2000_grouped)
 # Add factors
 # Create season factor
 # Winter = 12, 1, 2; Spring = 3, 4, 5, Summer = 6,7,8 Fall = 9, 10, 11
-df2000.seasons <- df2000 %>%
+df2000.seasons <- df2000_grouped %>%
   mutate(Month=as.numeric(format(WeekID, "%m"))) %>%
   mutate(Season=
            case_when(
@@ -135,15 +138,13 @@ df2000.seasons <- df2000 %>%
 
 # Create artist popularity factor
 # artist.pop = number of hot 100 songs by artist in past 3 years
-library(lubridate)
-
 df1997 <- as.data.frame(subset(merged.tb2, format(WeekID,"%Y")>=1997))
 df1997 <- df1997[order(df1997$WeekID), ] # get songs since 1997
 
 artist.pop.list <- c()
-for (idx in 1:nrow(df2000)) {
-  WeekID <- df2000[idx, "WeekID"]
-  artist <- df2000[idx, "artist"]
+for (idx in 1:nrow(df2000_grouped)) {
+  WeekID <- df2000_grouped[idx, "WeekID"]
+  artist <- df2000_grouped[idx, "artist"]
   three.y.earlier <- WeekID %m-% months(12*3)
   artist.pop <- nrow(df1997[(df1997$artist == artist) & (df1997$WeekID < WeekID) & (df1997$WeekID >= three.y.earlier),])
   artist.pop.list <- c(artist.pop.list, artist.pop)
