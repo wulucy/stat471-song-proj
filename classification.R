@@ -4,14 +4,13 @@ library(RColorBrewer)
 library(tm)
 library(data.table)
 library(JOUSBoost)
+library(glmnet)
 
-
-df2000.lyrics <- read.csv('df2000_grouped_morefactors_lyrics.csv')
-df2000.lyrics$top40 <- ifelse(df2000.lyrics$Peak.Position <= 40, 1, 0)
-df2000.lyrics$Season <- as.factor(df2000.lyrics$Season)
+df2000.final <- read.csv('df2000_final.csv')
+df2000.final$top40 <- ifelse(df2000.final$Peak.Position <= 40, 1, 0)
 
 # Text processing
-text.sample <- df2000.lyrics$lyrics
+text.sample <- df2000.final$lyrics
 corpus1 <- VCorpus(VectorSource(text.sample))
 corpus2 <- tm_map(corpus1, content_transformer(tolower)) # lowercase
 corpus3 <- tm_map(corpus2, removeWords, stopwords("english")) # remove non-content words
@@ -30,13 +29,13 @@ dim(as.matrix(dtm.clean))
 dtm.clean
 
 # Process the final dataframe to be used for model 
-lyrics.temp <- data.frame(df2000.lyrics, as.matrix(dtm.clean))
-names(lyrics.temp)
-lyrics.dataset <- lyrics.temp[, c(7:22, 24, 27:ncol(lyrics.temp))]
+lyrics.temp <- data.frame(df2000.final, as.matrix(dtm.clean))
+names(lyrics.temp)[1:50]
+lyrics.dataset <- lyrics.temp[, c(7:20, 22:43, 46:ncol(lyrics.temp))]
+names(lyrics.dataset)[1:50]
 dim(lyrics.dataset)
 
 lyrics.dataset$Month <- as.numeric(lyrics.dataset$Month)
-lyrics.dataset$Season <- as.factor(lyrics.dataset$Season)
 lyrics.dataset$top40 <- as.factor(lyrics.dataset$top40)
 sapply(lyrics.dataset, typeof)
 
@@ -51,14 +50,16 @@ dim(lyrics.test)
 # LASSO
 
 Y <- lyrics.train$top40
-X <- as.matrix(lyrics.train[, c(1:14, 16, 18:ncol(lyrics.train))]) 
-names(lyrics.train)
+X <- as.matrix(lyrics.train[, -c(35, 36)]) 
+names(lyrics.train)[1:50]
 result.lasso <- cv.glmnet(X, Y, alpha=1, family="binomial", type.measure = "auc")
+save(result.lasso, file="lasso.RData")
+
 plot(result.lasso)
 lasso.lambda.min <- result.lasso$lambda.min
 lasso.lambda.min
 
-predict.lasso <- predict(result.lasso, as.matrix(lyrics.test[, -c(15, 17)]), type = "class", s="lambda.min")
+predict.lasso <- predict(result.lasso, as.matrix(lyrics.test[, -c(35, 36)]), type = "class", s="lambda.min")
 mean(lyrics.test$top40 != predict.lasso)
 
 # GLM
@@ -75,9 +76,9 @@ n.test <- length(lyrics.test)
 Y.train <- ifelse(lyrics.train$top40 == 0, -1, 1)
 Y.test <- ifelse(lyrics.test$top40 == 0, -1, 1)
 
-boost <- adaboost(as.matrix(lyrics.train[,-c(15,17)]), Y.train, tree_depth = 3, n_rounds = 1, verbose = FALSE, control = NULL)
-yhat_test_ada <- predict(boost, lyrics.test[,-c(15, 17)])
-yhat_train_ada <- predict(boost, lyrics.train[,-c(15, 17)])
+boost <- adaboost(as.matrix(lyrics.train[,-c(35,36)]), Y.train, tree_depth = 3, n_rounds = 1, verbose = FALSE, control = NULL)
+yhat_test_ada <- predict(boost, lyrics.test[,-c(35, 36)])
+yhat_train_ada <- predict(boost, lyrics.train[,-c(35, 36)])
 
 save(yhat_test_ada, yhat_train_ada, file="boost.RData")
 
@@ -86,6 +87,8 @@ test_err <- mean(Y.test != yhat_test_ada)
 train_err <- mean(Y.train != yhat_train_ada)
 test_err
 train_err
+
+boost$trees
 
 ## ----- PREVIOUS Classification
 
