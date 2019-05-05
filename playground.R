@@ -60,7 +60,6 @@ albums.tb <- dbReadTable(db, "albums")
 bill100 <- read.csv(file = "Hot Stuff.csv")
 colnames(bill100)[4] <- "song"
 colnames(bill100)[5] <- "artist"
-unique(bill100$Song)
 
 # Merging with World Data
 merged.tb <- merge(bill100, acoustic.tb, by=c("artist", "song"))
@@ -97,3 +96,53 @@ merged.tb2 <- merged.tb %>%
 df2000 <- as.data.frame(subset(merged.tb2, format(WeekID,"%Y")>=2000))
 df2000 <- df2000[order(df2000$WeekID), ]
 dim(df2000)
+
+df2000_grouped <- df2000 %>%
+  group_by(song, artist, WeekID, Peak.Position, Weeks.on.Chart) %>%
+  summarise(
+    acousticness = round(mean(acousticness), 3),
+    danceability = round(mean(danceability), 3),
+    duration_ms = as.integer(mean(duration_ms)),
+    energy = round(mean(energy), 3),
+    instrumentalness = mean(instrumentalness),
+    key = as.integer(mean(key)),
+    liveness = round(mean(liveness), 3),
+    loudness = round(mean(loudness), 3),
+    mode = as.integer(mean(mode)),
+    speechiness = round(mean(speechiness), 4),
+    tempo = round(mean(tempo), 3),
+    time_signature = as.integer(mean(time_signature)),
+    valence = round(mean(valence), 3)
+    )
+
+df2000_grouped = as.data.frame(df2000_grouped)
+
+# Linear regression - AZ
+lm_df <- df2000_grouped %>%
+  select(-artist, -song, -WeekID, -Weeks.on.Chart)
+
+library(leaps)
+
+fit.exh <- regsubsets(Peak.Position ~., lm_df, nvmax=25, method="exhaustive")
+f.e <- summary(fit.exh)
+names(f.e)
+which.min(f.e$rss)
+data.frame(variables = (1:length(f.e$rsq)),
+           r_squared = f.e$rsq,
+           rss = f.e$rss,
+           bic = f.e$bic,
+           cp = f.e$cp)
+
+fit.backward <- regsubsets(Peak.Position ~., lm_df, nvmax=10, method="backward")
+
+fit.final <- lm(Peak.Position ~ ., lm_df)
+summary(fit.final)
+
+fit.dance <- lm(log(Peak.Position) ~ log(danceability), lm_df)
+
+sqrt(f.e$rss[13] / nrow(lm_df))
+
+library(ranger)
+library(rpart)
+
+tree.full <- rpart(Peak.Position ~ ., lm_df)
