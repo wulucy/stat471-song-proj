@@ -23,6 +23,10 @@ output:
     toc_depth: '4'
     pandoc_args:
      '--lua-filter=page-break.lua'
+fontsize: 11pt
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
 ---
 
 \newpage
@@ -33,11 +37,33 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Executive Summary
 
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce eu felis vitae ante maximus vulputate. Integer a vestibulum ipsum. Praesent mollis dolor at quam ullamcorper suscipit. Curabitur id imperdiet est. Mauris commodo iaculis arcu, non mollis nisl pellentesque ac. Nulla tempor pharetra dui. Sed urna ante, ultricies non sagittis non, sollicitudin in ipsum. Vivamus ut sapien id dui gravida pharetra interdum nec metus. Sed tempor vestibulum quam, non porttitor nibh auctor sit amet. Pellentesque imperdiet mauris diam. Ut consectetur sem nec sapien fringilla, vitae venenatis quam lobortis. Suspendisse condimentum, tellus at aliquam scelerisque, leo diam lacinia massa, a ultrices augue elit vel elit.
+
 # Background & Motivation
 
 ## Goal of Study
 
 # Data Overview
+
+# Exploratory Data Analysis (EDA)
+
+# Analysis 
+
+## Ordinary Least Square
+
+## Classification
+
+### LASSO
+
+### Random Forest
+
+# Text Mining
+
+## Data Collection
+
+## 
+
+
 
 
 
