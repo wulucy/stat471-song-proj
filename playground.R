@@ -118,6 +118,39 @@ df2000_grouped <- df2000 %>%
 
 df2000_grouped = as.data.frame(df2000_grouped)
 
+# Add factors
+# Create season factor
+# Winter = 12, 1, 2; Spring = 3, 4, 5, Summer = 6,7,8 Fall = 9, 10, 11
+df2000.seasons <- df2000 %>%
+  mutate(Month=as.numeric(format(WeekID, "%m"))) %>%
+  mutate(Season=
+           case_when(
+             Month == 12 | Month <= 2 ~ "Winter",
+             Month >= 3 & Month <= 5 ~ "Spring",
+             Month >= 6 & Month <= 8 ~ "Summer",
+             Month >= 9 & Month <= 11 ~ "Fall",
+             TRUE ~ "NA"
+           )
+  )
+
+# Create artist popularity factor
+# artist.pop = number of hot 100 songs by artist in past 3 years
+library(lubridate)
+
+df1997 <- as.data.frame(subset(merged.tb2, format(WeekID,"%Y")>=1997))
+df1997 <- df1997[order(df1997$WeekID), ] # get songs since 1997
+
+artist.pop.list <- c()
+for (idx in 1:nrow(df2000)) {
+  WeekID <- df2000[idx, "WeekID"]
+  artist <- df2000[idx, "artist"]
+  three.y.earlier <- WeekID %m-% months(12*3)
+  artist.pop <- nrow(df1997[(df1997$artist == artist) & (df1997$WeekID < WeekID) & (df1997$WeekID >= three.y.earlier),])
+  artist.pop.list <- c(artist.pop.list, artist.pop)
+}
+
+df2000.seasons$artist.pop <- artist.pop.list
+
 # Linear regression - AZ
 lm_df <- df2000_grouped %>%
   select(-artist, -song, -WeekID, -Weeks.on.Chart)
@@ -147,34 +180,3 @@ library(ranger)
 library(rpart)
 
 tree.full <- rpart(Peak.Position ~ ., lm_df)
-# Create season factor
-# Winter = 12, 1, 2; Spring = 3, 4, 5, Summer = 6,7,8 Fall = 9, 10, 11
-df2000.seasons <- df2000 %>%
-  mutate(Month=as.numeric(format(WeekID, "%m"))) %>%
-  mutate(Season=
-           case_when(
-             Month == 12 | Month <= 2 ~ "Winter",
-             Month >= 3 & Month <= 5 ~ "Spring",
-             Month >= 6 & Month <= 8 ~ "Summer",
-             Month >= 9 & Month <= 11 ~ "Fall",
-             TRUE ~ "NA"
-               )
-  )
-
-# Create artist popularity factor
-# artist.pop = number of hot 100 songs by artist in past 3 years
-library(lubridate)
-
-df1997 <- as.data.frame(subset(merged.tb2, format(WeekID,"%Y")>=1997))
-df1997 <- df1997[order(df1997$WeekID), ] # get songs since 1997
-
-artist.pop.list <- c()
-for (idx in 1:nrow(df2000)) {
-  WeekID <- df2000[idx, "WeekID"]
-  artist <- df2000[idx, "artist"]
-  three.y.earlier <- WeekID %m-% months(12*3)
-  artist.pop <- nrow(df1997[(df1997$artist == artist) & (df1997$WeekID < WeekID) & (df1997$WeekID >= three.y.earlier),])
-  artist.pop.list <- c(artist.pop.list, artist.pop)
-}
-
-df2000.seasons$artist.pop <- artist.pop.list
