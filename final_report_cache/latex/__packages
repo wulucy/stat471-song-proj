@@ -1,0 +1,14 @@
+base
+ggplot2
+dplyr
+SnowballC
+RColorBrewer
+wordcloud
+NLP
+tm
+data.table
+JOUSBoost
+Matrix
+foreach
+glmnet
+bindrcpp

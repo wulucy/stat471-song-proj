@@ -1,0 +1,155 @@
+---
+title: "STAT 471 Final Project"
+subtitle: "Determining What Makes a Song Hot or Not"
+date: May 5, 2019
+author:
+- Lucy Wu
+- Andrew Zheng
+- Duong Nguyen
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+    number_sections: true
+  html_document:
+    code_folding: show
+    highlight: haddock
+    theme: lumen
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  word_document:
+    toc: yes
+    toc_depth: '4'
+    pandoc_args:
+     '--lua-filter=page-break.lua'
+fontsize: 11pt
+header-includes:
+  - \usepackage{leading}
+  - \leading{18pt}
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+library(tm)
+library(data.table)
+library(JOUSBoost)
+library(glmnet)
+```
+
+# Executive Summary
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce eu felis vitae ante maximus vulputate. Integer a vestibulum ipsum. Praesent mollis dolor at quam ullamcorper suscipit. Curabitur id imperdiet est. Mauris commodo iaculis arcu, non mollis nisl pellentesque ac. Nulla tempor pharetra dui. Sed urna ante, ultricies non sagittis non, sollicitudin in ipsum. Vivamus ut sapien id dui gravida pharetra interdum nec metus. Sed tempor vestibulum quam, non porttitor nibh auctor sit amet. Pellentesque imperdiet mauris diam. Ut consectetur sem nec sapien fringilla, vitae venenatis quam lobortis. Suspendisse condimentum, tellus at aliquam scelerisque, leo diam lacinia massa, a ultrices augue elit vel elit.
+
+# Background & Motivation
+
+## Goal of Study
+
+# Data Overview
+
+# Exploratory Data Analysis (EDA)
+
+# Analysis 
+
+## Linear Models
+
+### Random Forest
+
+## Classification
+
+### Random Forest
+
+# Text Mining
+
+During our process of building the Random Forest Model, we realized that we can significantly enhance our dataset by combining each song with its respective lyrics. With the lyrics data, we hypothesize that there are certain words/topics that would make a song popular enough for the Billboard Top 40.
+
+## Data Collection
+
+First, we used Python and the Genius API (genius.com) to search for song lyrics and match them against our dataset. The Python code for this can be found in Appendix 1. There were a couple of songs that the Genius API cannot search data for so we did that manually by hand and input the lyrics in. Next, we merged this lyrics data with the original ``df2000`` dataset and we are ready to perform text mining.
+
+## LASSO
+
+The first step in doing data analysis is to clean up the text of the lyrics. We performed the standard corpus transformations such as removing stop words, punctuations and stemming words. Then we decided that we want to focus on words that appear on at least 5% of all documents. There are roughly 435 words that were chosen depending on the seed that we set it to. We also faced the same problem as before of having too many rows that are not in the Top 40 versus rows that are in the Top 40. So like before, we sample with replacement from the training dataset so that the dataset that we use for analysis has roughly equal number of Top 40 verus non-Top 40 songs. With this, we ran a LASSO model with $\alpha=1$ and error criterion being AUC. Here is the plot of the LASSO model:
+
+
+```{r, echo=FALSE}
+load("lasso.RData")
+plot(result.lasso)
+```
+
+The reported minimum Lambda from this model is 0.002513537. Using the untouched testing set, we calculate the testing error for the LASSO model to be 0.246988. Next, we wanted to use the reported betas from the LASSO model to pick out the non-zero ones and refit them into a glm model. The misclassification error for the testing dataset is 0.2188755. For a full list of words that were chosen by the glm model, please see Appendix 2. The full confusion matrix for the glm model can be seen below:
+
+```{r, echo=FALSE}
+load("cfglm.RData")
+cf.glm
+```
+
+From the confusion matrix above, we can see that our sensitivity statistic is $\frac{29}{99} = 0.29$ and our specificity statistic is $\frac{749}{897} = 0.84$. The model does not perform so well on determining if a true Top 40 song is going to be in the Top 40. However, it seems to perform better on predicting songs that are not in the Top 40. Although the testing error for the glm model did improve from the LASSO model, we want to run boosting on this dataset specifically to increase the strength of the weak predictors. We have many predictors but none of them are particularly strong based on the results from the previous models, so boosting could potentially make these predictors stronger at predicting the true positives. 
+
+## Boosting
+
+For boosting, we used Adaboosting with tree depth of 3 and 100 rounds. This produces a training error of 0.008196721 and a testing error of 0.1556225. Below is the full tree after boosting 100 rounds. 
+
+```{,eval=FALSE}
+n= 5124 
+node), split, n, loss, yval, (yprob)
+      * denotes terminal node
+ 1) root 5124 0.471875000 1  
+   2) mean< 1.5 4877 0.437412500 1  
+     4) everi>=3.5 53 0.000000000 1 *
+     5) everi< 3.5 4824 0.437412500 1  
+      10) leav>=1.5 201 0.007429064 1 *
+      11) leav< 1.5 4623 0.429983500 1 *
+   3) mean>=1.5 247 0.017020600 2  
+     6) danceability< 0.5725 32 0.000000000 1 *
+     7) danceability>=0.5725 215 0.008417066 2  
+      14) speechiness< 0.0456 15 0.000000000 1 *
+      15) speechiness>=0.0456 200 0.004193916 2 *
+```
+
+From the tree above we can see that the words that start with "mean", "everi", and "leav" are significant in classifying whether a song is in the Top 40 or not, while other characeristics such as danceability and speechiness are also significant. 
+
+
+# Appendix
+
+**Appendix 1: Python code for pulling lyrics data**
+
+```{Python}
+import lyricsgenius
+import csv
+
+genius = lyricsgenius.Genius("***")
+with open('output.csv','w') as file:
+    with open('df2000_grouped_morefactors.csv', 'r') as csvfile:
+        readCSV = csv.reader(csvfile, delimiter=',')
+        next(readCSV, None)
+        for row in readCSV:
+            song = row[1]
+            artist = row[2]
+            curr = row[22]
+            if len(curr) == 0:
+                lyric = genius.search_song(song, artist)
+                if lyric is not None:
+                    edited = lyric.lyrics.replace('\n', '')
+                    file.write(edited.replace(',', ''))
+                    file.write('\n')
+                else:
+                    lyrics.append(" ")
+        csvfile.close()
+    file.close()
+```
+
+**Appendix 2: Coefficients produced by the glm model**
+
+```{r, echo=FALSE}
+load("glm.RData")
+result.glm.coef <- coef(result.glm)
+result.glm.coef
+```
+
+

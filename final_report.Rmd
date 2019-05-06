@@ -33,10 +33,17 @@ urlcolor: blue
 \newpage
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.height=4)
 
 library(ggplot2)
 library(dplyr)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+library(tm)
+library(data.table)
+library(JOUSBoost)
+library(glmnet)
 
 setwd("/Users/lucy/Documents/2019 Spring/STAT471/Final Project")
 data <- read.csv('df2000_withgenre_withyear.csv')
@@ -48,7 +55,7 @@ Most people are unable to pinpoint what sets their favorite song apart from the 
 
 The dataset we use in our analysis contains every song that appeared in the Billboard Hot 100 from 2000 through 2018 along with a set of 37 possible predictive factors. These factors range from metrics quantifying the song's musical characteristics to the popularity of the artist that created the song.
 
-To model the song ranking based on these factors, we fit both a regression model (to predict a song's rank) and classification models (to predict whether or not a song would be a top 40 hit). For the regression model, we used ordinary least squares with LASSO; for the classification models, we used logistic regression with LASSO and Random Forests with boosting. Ultimately, the best classification model resulted in a testing misclassification error of 0.15, while the best regression model resulted in a testing mean squared error of [INPUT HERE]
+To model the song ranking based on these factors, we fit both a regression model (to predict a song's rank) and classification models (to predict whether or not a song would be a top 40 hit). For the regression model, we used ordinary least squares with LASSO; for the classification models, we used logistic regression with LASSO and Random Forests with boosting. Ultimately, the best classification model resulted in a testing misclassification error of 0.15, while the best regression model resulted in a testing mean squared error of 450.
 
 # Background & Motivation
 
@@ -100,28 +107,7 @@ Most of the data was sourced from [components.one](https://components.one/datase
 
 # Exploratory Data Analysis (EDA)
 
-First, let us examine our target variable, `Peak.Position`.
-
-```{r, echo=FALSE}
-ggplot(data, aes(x=Peak.Position)) + geom_histogram(binwidth=5) + ggtitle("Peak Position Frequency") + xlab("Peak Position") + ylab("Count")
-```
-
-It looks like relatively few songs in the dataset reach the top 50 compared to the total number of songs that reach top 100. In other words, our dataset is unbalanced with regards to peak position -- we will need to keep this in mind going forward.
-
-Overall, the most popular artists are:
-
-\begin{table}[h]
-\centering
-\begin{tabular}{|l|l|}
-\hline
-\textbf{Artist} & \textbf{Number of Top 100 Songs} \\ \hline
-Drake           & 67             \\ \hline
-Taylor Swift    & 48             \\ \hline
-Tim McGraw      & 33             \\ \hline
-Keith Urban     & 29             \\ \hline
-Kenny Chesney   & 27             \\ \hline
-\end{tabular}
-\end{table}
+First, let us examine our target variable, `Peak.Position`. The plot is provided in the Appendix. It looks like relatively few songs in the dataset reach the top 50 compared to the total number of songs that reach top 100. In other words, our dataset is unbalanced with regards to peak position -- we will need to keep this in mind going forward.
 
 Given that we're predicting a song's popularity in terms of its peak position on the Billboard chart, we might wonder how various factors are correlated with a song's peak position. 
 
@@ -234,19 +220,102 @@ This might seem surprising, but it is likely due to the fact that the "genre" of
 
 # Analysis 
 
-## Ordinary Least Square
+## Regression Analysis
 
-## Classification
+### Linear Model Analysis (OLS)
 
-### LASSO
+We first employed a linear model to approach our goal of predicting a song’s peak chart position. A quick glance at a histogram of peak chart position showed that the response variable’s distribution exhibited a strong negative skew and would not lend itself well for a linear regression analysis in its current form. To address this issue, we considered a variety of transformations including taking the natural logarithm, squaring the data, and reversing the data such that highest charted songs were represented by 100 instead of 1 and then taking the natural logarithm. As the histogram and Q-Q plot indicate, the last transformation left us with the most normal distribution of our response variable, and we proceeded accordingly.
+
+To generate our model, we used the *regsubsets* package and ran backwards selection on all the predictive variables in the dataset excluding `Year` for interpretability reasons. The model that contained 11 variables minimized $C_p$ of the 26 that we generated. From there we manually performed backwards selection to remove variables until all those remaining were significant at the 0.10 level. After two iterations we were left with a model containing 9 variables: `danceability`, `duration_ms`, `valence`, `artist.pop`, `trap`, `indie`, `country`, `folk` and `funk`. Three of the variables came from our table of Spotify audio qualities while the rest either represented the song’s tagged genre or information about the artist.
+
+As we can see from the summary output, our model produced an $R^2$ of 0.10, indicating that our linear representation explained very little of the variation in the response variable.
+
+It quickly became apparent that our linear model would be an inadequate representation of our response variable, particularly when attempting to predict which songs would be the most popular. Our predicted values on the training dataset ranged from 10.48 to 95.32.  Although over 50 entries in the dataset had peak positions of at least top 10, our fitted model was not able to detect the differences between the best songs and the rest of the dataset. Unsurprisingly, our mean squared error generated from the training data was much higher than desired at 524, suggesting that the model’s estimates missed the true positions by around 23 places on average.  The performance on the testing dataset was only slight worse with an MSE of 543.
+
+### Random Forest (Regression)
+
+Random Forest was the last method we employed from the family of linear models. To tune our parameters, we analyzed how OOB testing error changed with the number of trees from 0 to 500 with a fixed mtry of 10. As the plot indicates, the error measurements stabilized around ntree = 200. We then analyzed the MSEs of Random Forests generated with mtry values ranging from 1 to 15, ultimately choosing mtry = 10 as it minimized the OOB error. At approximately 234. 
+
+When applied to the training data our model generated an MSE of 42, but it quickly became apparent that our Random Forest was considerably overfitting in light of the testing MSE of 450. Although the performance on the testing data was still underwhelming, it was still an improvement over our other linear methods.
+
+### Decision Tree
+
+Decision trees provided another approach to modeling a song’s predicted chart position.  We fit regression tree to predict the untransformed Peak.Position variable on our training data, employing all the variables in the dataset. For this segment of analysis, we included the Year variable as a factor so that we could capture the interaction between the year a song was released and the other audio and genre measures.  The tree using all available predictors chose 14 splits on the following nine factors: `country`, `Year`, `artist.pop`, `Season`, `key`, `duration_ms`, `instrumentalness`, `valence`, and `loudness`. The predicted values from the model ranged from 33 to 91 and generated an MSE of 378 on the training data. When applied to the testing data, the MSE rose to 488, a considerable improvement over the least squares’ regression model.
+
+## Classification Model Analysis
+
+The obvious inadequacies of the linear regression models necessitated that we consider new approaches to predict a song’s popularity and chart performance. The category “Top-40” is a commonly used grouping to differentiate the most popular songs from others, even within the Billboard Top 100. Songs that are charted in this echelon are commonly included in popular playlists and garner considerable radio playtime. As such, we saw practical application value in capturing the differences between Top-40 entries and songs that were on the brink of widespread recognition but just fell short. 
+
+One concern with this approach was that there was how to address the severe imbalance between the songs in our dataset that were Top-40 and those that were not. Only 8% of the entries in our training data fell into our target category, which we knew would drastically hamper our models’ classification abilities. To combat this issue, we oversampled the Top-40 songs from our training dataset such that the distribution for our response variable was evenly split between positive and negative indicator values, resulting in 2137 entries for both Top-40 and non-Top-40 songs.  The testing dataset was left untouched.
+
+### Logistic Regression
+
+To begin we fit a logistic regression to predict our dummy variable top40. We then removed the coefficients with the highest p-values until there were only 15 remaining, the maximum number of variables accepted by the bestglm package. The best model found by the exhaustive search contained nine variables, all of which were significant at the 0.05 level. To formulate classification predictions, we employed a threshold of 0.5. Given an even split between positive and negative values in our response variable, we achieved a training MCE of 0.32 from our logistic regression model. Unfortunately, the model performed much worse on our testing dataset, reporting a testing MCE of 0.35 when only 8.8% of the data points were actually in the Top-40. While we could have trivially achieved a much better MCE by predicting negative values for all our data points, our confusion matrix showed that we had a sensitivity 0.70, indicating that were able to classify a considerable portion of the positive values. The false positive rate of 0.82, however, left much to be desired form our model.
+
+### Decision Tree
+
+The classification tree fit on all variables generated 16 splits on a subset of 11 variables from 28 made available. Applying our threshold of 0.5 once again, our tree gave us a MCE of 0.22 on the training data and 0.38 on the testing data. Overall, the testing results were much worse for our decision tree when compared to the logistic regression. As can be concluded from the confusion matrix, sensitivity decreased to 0.68 while the false positive rate climbed to 0.86.
+
 
 ### Random Forest
 
+The last classification model employed on the audio, genre, artist and release date variables was a Random Forest fit on all variables. The model output indicates that our OOB estimate of error rate was approximately 0.26%, but those results did not translate to the testing data. Our MCE was approximately 0.08. Given that 8.8% of the underlying test data had positive response variables, we would have only slightly beat the MCE from a model that predicted all negative values. Furthermore, the model only correctly identified 12 Top-40 songs, making for a sensitivity rate of 0.14. Needless to say, the Random Forest fit did not provide a robust model of our dataset, but it had the lowest false positive rate of the three models at 0.40.
+
 # Text Mining
+
+During our process of building the Random Forest Model, we realized that we can significantly enhance our dataset by combining each song with its respective lyrics. With the lyrics data, we hypothesize that there are certain words/topics that would make a song popular enough for the Billboard Top 40.
 
 ## Data Collection
 
+First, we used Python and the Genius API (genius.com) to search for song lyrics and match them against our dataset. The Python code for this can be found in Appendix 1. There were a couple of songs that the Genius API cannot search data for so we did that manually by hand and input the lyrics in. Next, we merged this lyrics data with the original ``df2000`` dataset and we are ready to perform text mining.
+
+## LASSO
+
+The first step in doing data analysis is to clean up the text of the lyrics. We performed the standard corpus transformations such as removing stop words, punctuations and stemming words. Then we decided that we want to focus on words that appear on at least 5% of all documents. There are roughly 435 words that were chosen depending on the seed that we set it to. We also faced the same problem as before of having too many rows that are not in the Top 40 versus rows that are in the Top 40. So like before, we sample with replacement from the training dataset so that the dataset that we use for analysis has roughly equal number of Top 40 verus non-Top 40 songs. With this, we ran a LASSO model with $\alpha=1$ and error criterion being AUC. Here is the plot of the LASSO model:
+
+
+```{r, echo=FALSE}
+load("lasso.RData")
+plot(result.lasso)
+```
+
+The reported minimum Lambda from this model is 0.002513537. Using the untouched testing set, we calculate the testing error for the LASSO model to be 0.246988. Next, we wanted to use the reported betas from the LASSO model to pick out the non-zero ones and refit them into a glm model. The misclassification error for the testing dataset is 0.2188755. For a full list of words that were chosen by the glm model, please see Appendix 2. The full confusion matrix for the glm model can be seen below:
+
+```{r, echo=FALSE}
+load("cfglm.RData")
+cf.glm
+```
+
+From the confusion matrix above, we can see that our sensitivity statistic is $\frac{29}{99} = 0.29$ and our specificity statistic is $\frac{749}{897} = 0.84$. The model does not perform so well on determining if a true Top 40 song is going to be in the Top 40. However, it seems to perform better on predicting songs that are not in the Top 40. Although the testing error for the glm model did improve from the LASSO model, we want to run boosting on this dataset specifically to increase the strength of the weak predictors. We have many predictors but none of them are particularly strong based on the results from the previous models, so boosting could potentially make these predictors stronger at predicting the true positives. 
+
+## Boosting
+
+For boosting, we used Adaboosting with tree depth of 3 and 100 rounds. This produces a training error of 0.008196721 and a testing error of 0.1556225. Below is the full tree after boosting 100 rounds. 
+
+```{,eval=FALSE}
+n= 5124 
+node), split, n, loss, yval, (yprob)
+      * denotes terminal node
+ 1) root 5124 0.471875000 1  
+   2) mean< 1.5 4877 0.437412500 1  
+     4) everi>=3.5 53 0.000000000 1 *
+     5) everi< 3.5 4824 0.437412500 1  
+      10) leav>=1.5 201 0.007429064 1 *
+      11) leav< 1.5 4623 0.429983500 1 *
+   3) mean>=1.5 247 0.017020600 2  
+     6) danceability< 0.5725 32 0.000000000 1 *
+     7) danceability>=0.5725 215 0.008417066 2  
+      14) speechiness< 0.0456 15 0.000000000 1 *
+      15) speechiness>=0.0456 200 0.004193916 2 *
+```
+
+From the tree above we can see that the words that start with "mean", "everi", and "leav" are significant in classifying whether a song is in the Top 40 or not, while other characeristics such as danceability and speechiness are also significant.
+
 # Conclusion
+
+In conclusion, we performed various numbers of models on the Billboard Top 100 songs dataset from 2000 and after. We combined the dataset with the Spotify characteristics and Genius's lyrics data to enhance the performance of the dataset. Further, we found that there are a few main features such as "danceability" and "speechiness", combined with lyrics that include words such as "everi" and "leav" that would create a Top 40 song. Despite the MCE being relatively low, the dataset did suffer from the lack of songs that were in the Top 40 relative to songs that are not in the Top 40. Because of this, our models produced different subsets of significant predictors. 
+
+Although our models fell short of achieving the predictive power for which we had hoped, we hope that the analysis of the significant variables within the models can provide some insight into what makes songs popular.
 
 ## Limitations & Further Studies
 
@@ -257,7 +326,44 @@ Due to time, length, and knowledge constraints, our project faced several limita
 - **Try other techniques to improve the imbalanced dataset.** As mentioned in previous sections, we faced significant difficulty building our classifier because our target variable was so imbalanced. We attempted to use bagging, boosting, and resampling methods to address this imbalance; in future studies, we would like to try out additional resampling methods and/or try models that adapt to given prior probabilities. 
 - **Try applying similar models to predict whether a song will be on the Billboard Hot 100 or not.** In this study, we attempted to predict a song's ranking _within_ the Hot 100. However, in reality, all of the Billboard Hot 100 songs are quite popular, so there might not actually be a significant difference between a song in the bottom 60 of the Hot 100 versus the top 40; therefore, it might be difficult or impossible to create a model that accurately predicts a song's ranking within the Hot 100. Using a similar approach to determine whether a song will make it into the Hot 100 or not might yield better results, since there is likely a larger difference between an extremely unpopular song and a song in the Hot 100. 
 
+\newpage
+
 # Appendix
+
+## Python code for pulling lyrics data**
+
+```{Python}
+import lyricsgenius
+import csv
+
+genius = lyricsgenius.Genius("***")
+with open('output.csv','w') as file:
+    with open('df2000_grouped_morefactors.csv', 'r') as csvfile:
+        readCSV = csv.reader(csvfile, delimiter=',')
+        next(readCSV, None)
+        for row in readCSV:
+            song = row[1]
+            artist = row[2]
+            curr = row[22]
+            if len(curr) == 0:
+                lyric = genius.search_song(song, artist)
+                if lyric is not None:
+                    edited = lyric.lyrics.replace('\n', '')
+                    file.write(edited.replace(',', ''))
+                    file.write('\n')
+                else:
+                    lyrics.append(" ")
+        csvfile.close()
+    file.close()
+```
+
+## Coefficients produced by the glm model**
+
+```{r, echo=FALSE}
+load("glm.RData")
+result.glm.coef <- coef(result.glm)
+result.glm.coef
+```
 
 ## Plot Loudness
 
@@ -267,6 +373,12 @@ ggplot(data.spotify, aes(x=Peak.Position)) +
   scale_color_discrete(labels = NULL, name=NULL) +
   ggtitle("Average Loudness by Peak Position") +
   xlab("Peak Position") + ylab("Average Loudness")
+```
+
+## Peak Position Frequency Plot
+
+```{r, echo=FALSE}
+ggplot(data, aes(x=Peak.Position)) + geom_histogram(binwidth=5) + ggtitle("Peak Position Frequency") + xlab("Peak Position") + ylab("Count")
 ```
 
 ## Spotify Audio Analysis Variables Density by Peak Position
@@ -431,6 +543,263 @@ ggplot(data, aes(x=speechiness)) +
   ggtitle("Speechiness Density by Genre") +
   xlab("Speechiness") + ylab("Density") +
   theme(legend.title = element_blank())
+```
+
+## Linear Model Diagnostics
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+library(dplyr)
+df2000_extra <- read.csv('df2000_withgenre_withyear.csv')
+
+# Linear regression - AZ
+lm_df <- df2000_extra %>%
+  select(-artist, -song, -WeekID, -Weeks.on.Chart, -X.1, -X)
+
+lm_df$Year <- as.factor(lm_df$Year)
+
+summary(lm_df)
+
+# Remove the columns that have no or very few observations
+lm_df_1 <- lm_df %>%
+  select(-instrumental, -bluegrass, -jazz, -classical, -broadway, -opera, -hip.hop)
+
+# Add transformed variable to new data frame
+lm_df_1$Peak.Transformed <- log(101 - lm_df$Peak.Position)
+lm_df_1$Peak.Position <- NULL
+
+set.seed(22)
+train_indices <- sample(nrow(lm_df_1), nrow(lm_df_1) * 0.7, replace=FALSE)
+train_df <- lm_df_1[train_indices,]
+test_df <- lm_df_1[-train_indices,]
+
+# Consider transformations
+fit.linear <- lm(Peak.Position ~., lm_df)
+fit.log <- lm(log(Peak.Position) ~. , lm_df)
+fit.reverse <- lm(log(101- Peak.Position) ~., lm_df)
+fit.square <- lm(Peak.Position^2 ~. , lm_df)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+# Normal Q-Q Plots
+par(mfrow = c(2,2))
+plot(fit.linear, 2, main = "No Transformation")
+plot(fit.log, 2, main = "Log Transformation")
+plot(fit.reverse, 2, main = "Log+Reverse Transformation")
+plot(fit.square, 2, main = "Square Transformation")
+```
+
+```{r}
+# Histograms of transformed distribution
+par(mfrow = c(2,2))
+hist(lm_df$Peak.Position)
+hist(I(log(lm_df$Peak.Position)))
+hist(I(log(101 - lm_df$Peak.Position)))
+hist(I(lm_df$Peak.Position^2))
+```
+
+## Linear Model (OLS) Backwards Selection
+
+```{r, include=FALSE}
+# Backwards model selection with regsubsets (don't include Year)
+library(leaps)
+fit.exh <- regsubsets(Peak.Transformed ~ . -Year, train_df, nvmax=25, method="backward")
+f.e <- summary(fit.exh)
+data.frame(variables = (1:length(f.e$rsq)),
+           r_squared = f.e$rsq,
+           rss = f.e$rss,
+           bic = f.e$bic,
+           cp = f.e$cp)
+
+# Model with 11 variables minimized cp. Remove variables until all are significant
+fit.backwards <- lm(Peak.Transformed ~ danceability + duration_ms + instrumentalness + valence +
+                      artist.pop + trap + indie + country + folk + rock + funk, train_df)
+# fit.backwards.1 <- lm(Peak.Transformed ~ danceability + duration_ms + valence +
+#                         artist.pop + trap + indie + country + folk + rock + funk, lm_df_1)
+fit.backwards.2 <- lm(Peak.Transformed ~ danceability + duration_ms + valence +
+                        artist.pop + trap + country + folk + rock + funk, lm_df_1)
+# Our lm final model
+fit.final <- fit.backwards.2 
+```
+
+```{r, echo=FALSE}
+summary(fit.final)
+```
+
+## Decision Tree (Regression)
+
+```{r, include=FALSE, warning=FALSE}
+# Regression trees
+library(rpart)
+library(party)
+library(rattle)		
+library(rpart.plot)	
+
+# Add Peak.Position back in
+lm_df_2 <- lm_df_1
+lm_df_2$Peak.Position <- lm_df$Peak.Position
+lm_df_2$Peak.Transformed <- NULL
+train_df_2 <- lm_df_2[train_indices,]
+test_df_2 <- lm_df_2[-train_indices,]
+
+tree.full <- rpart(Peak.Position ~ ., train_df_2)
+```
+
+```{r, echo=FALSE}
+par(mfrow = c(1,1))
+fancyRpartPlot(tree.full)
+```
+
+## Random Forest (Regression)
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+library(randomForest)
+fit.rf <- randomForest(Peak.Position ~., train_df_2, mtry=10, ntree=500) 
+```
+
+```{r, echo=FALSE, warning=FALSE}
+par(mfrow=c(1,1))
+plot(fit.rf, col="blue", pch=16, type="p", main="default plot")
+```
+
+```{r, echo=FALSE, warning=FALSE}
+rf.error.p <- 1:15
+
+for (p in 1:15) {
+  fit.rf <- randomForest(Peak.Position ~ ., train_df_2, mtry=p, ntree=200) 
+  rf.error.p[p] <- fit.rf$mse[200] 
+}
+
+plot(1:15, rf.error.p[1:15], pch=16, xlab="mtry",
+     ylab="OOB mse of mtry") 
+lines(1:15, rf.error.p[1:15])
+```
+```{r, include=FALSE, eval=FALSE}
+# choose mtry = 10 for final rf
+fit.rf.final <- randomForest(Peak.Position ~ ., train_df_2, mtry=10, ntree=200) 
+
+# Testing errors
+plot(fit.rf.final$mse, xlab="number of trees", col="blue", ylab="ave mse up to i many trees using OOB predicted", pch=16)
+fit.rf.final$mse[200]
+
+yhat.rf.train <- predict(fit.rf.final, train_df_2)
+mse.rf.train <- mean((train_df_2$Peak.Position-yhat.rf.train)^2)
+
+yhat.rf.test <- predict(fit.rf.final, test_df_2)
+mse.rf.test <- mean((test_df_2$Peak.Position-yhat.rf.test)^2)
+
+hist(yhat.rf.train)
+range(yhat.rf.train)
+hist(yhat.rf.test)
+range(yhat.rf.test)
+```
+
+## Logistic Regression
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
+# Classification data
+train_class <- train_df_2
+test_class <- test_df_2
+
+train_class$top40 <- as.numeric(train_class$Peak.Position <= 40)
+test_class$top40 <- as.numeric(test_class$Peak.Position <= 40)
+
+train_class$Peak.Position <- NULL
+test_class$Peak.Position <- NULL
+sum(train_class$top40) / nrow(train_class)
+
+# Create oversampled training dataset to account for imbalance between top40 and not top40
+
+top40_index <- which(train_class$top40 == 1)
+set.seed(20)
+oversampled_index <- sample(top40_index, sum(train_class$top40 == 0) - sum(train_class$top40 == 1), replace=TRUE)
+train_class_os <- rbind(train_class, train_class[oversampled_index,])
+
+library(bestglm)
+
+fit.glm.full <- glm(top40 ~ ., train_class_os, family='binomial')
+
+summary(fit.glm.full)
+
+pred.full.train <- as.numeric(predict(fit.glm.full, train_class_os, type='response') >= 0.5)
+
+mce.full.train <- mean(pred.full.train != train_class_os$top40)
+
+pred.full.test <- as.numeric(predict(fit.glm.full, test_class, type='response') >= 0.5)
+
+mce.full.test <- mean(pred.full.test != test_class$top40)
+
+cm.full <- table(pred.full.test, test_class$top40)
+
+cm.full
+
+# Prune down the variables to feed into bestglm
+
+fit.glm.prune <- glm(top40 ~  acousticness + danceability + energy + liveness +
+                       loudness + rap + rock + artist.pop + trap + indie + metal + country + folk +
+                       funk, train_class_os, family = 'binomial')
+
+summary(fit.glm.prune)
+```
+
+```{r, echo=FALSE, warning=FALSE}
+Xy <- model.matrix(top40 ~  acousticness + danceability + energy + liveness +
+                     loudness + rap + rock + artist.pop + trap + indie + metal + country + folk +
+                     funk + 0 , train_class_os) 
+
+Xy <- data.frame(Xy, train_class_os$top40)
+
+#fit.all <- bestglm(Xy, family = binomial, method = "exhaustive", IC="AIC", nvmax = 15)
+
+#load('fit.all.RData')
+
+#fit.all$BestModel
+
+fit.glm <- glm(top40 ~ acousticness + danceability + energy +  rock + liveness + loudness + artist.pop + trap + indie + 
+                 metal + country + folk + funk, train_class_os,  family = 'binomial')
+
+summary(fit.glm)
+
+pred.glm.train <- as.numeric(predict(fit.glm, train_class_os, type='response') >= 0.5)
+
+mce.glm.train <- mean(pred.glm.train != train_class_os$top40)
+
+pred.glm.test <- as.numeric(predict(fit.glm, test_class, type='response') >= 0.5)
+
+mce.glm.test <- mean(pred.glm.test != test_class$top40)
+
+cm.glm <- table(pred.glm.test, test_class$top40)
+cm.glm
+
+#cm.glm[2,2]/sum(test_class$top40 == "1")
+```
+
+## Classification Tree 
+
+```{r, echo=FALSE, warning=FALSE}
+tree.class <- rpart(top40 ~ ., train_class_os)
+fancyRpartPlot(tree.class)
+pred.tree.train <- as.numeric(predict(tree.class, train_class_os) >= 0.5)
+mce.tree.train.class <- mean(pred.tree.train != train_class_os$top40)
+
+pred.tree.test <- as.numeric(predict(tree.class, test_class) >= 0.5)
+mce.tree.test.class <- mean(pred.tree.test != test_class$top40)
+cm.tree <-table(pred.tree.test, test_class$top40)
+#cm.tree[2,2]/sum(test_class$top40 == "1")
+```
+
+## Random Forest (Classification)
+```{r, echo=FALSE, warning=FALSE}
+par(mfrow=c(1,1))
+set.seed(22)
+fit.rf.class <- randomForest(as.factor(top40) ~ ., train_class_os, ntree=200) 
+plot(fit.rf.class)
+
+#fit.rf.class
+
+fit.rf.pred.test <- predict(fit.rf.class, test_class, type="response") 
+mce.rf.test <- mean(test_class$top40 != fit.rf.pred.test)
+
+cm.rf <- table(fit.rf.pred.test, test_class$top40)
+cm.rf
 ```
 
 
