@@ -27,6 +27,7 @@ fontsize: 11pt
 header-includes:
   - \usepackage{leading}
   - \leading{18pt}
+urlcolor: blue
 ---
 
 \newpage
@@ -94,6 +95,8 @@ In total, we have 3,320 observations of 41 variables in our dataset. Each observ
 
 - `peak.position`: Peak position that the song reached on the Billboard Hot 100 (with 1 being most popular, 100 being less popular). 
 - `weeks.on.chart`: Total weeks that the song spent on the Billboard Hot 100 chart. 
+
+Most of the data was sourced from [components.one](https://components.one/datasets/billboard-200/); lyrics were scraped from [Genius](https://genius.com/) and genre was scraped via the [Spotify Web API](https://developer.spotify.com/).
 
 # Exploratory Data Analysis (EDA)
 
@@ -253,9 +256,170 @@ This might seem surprising, but it is likely due to the fact that the "genre" of
 
 ## Data Collection
 
-## 
+# Appendix
 
+## Spotify Audio Analysis Variables Density by Peak Position
 
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=acousticness)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Acousticness Density by Genre") +
+  xlab("Acousticness") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=energy)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Energy Density by Genre") +
+  xlab("Energy") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=danceability)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Danceability Density by Genre") +
+  xlab("Danceability") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=instrumentalness)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Instrumentalness Density by Genre") +
+  xlab("Instrumentalness") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=liveness)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Liveness Density by Genre") +
+  xlab("Liveness") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=loudness)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Loudness Density by Genre") +
+  xlab("Loudness") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=speechiness)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Speechiness Density by Genre") +
+  xlab("Speechiness") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
 
 
 
