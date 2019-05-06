@@ -1,0 +1,19 @@
+---
+title: "exec_summary"
+author: "Lucy Wu"
+date: "5/5/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Executive Summary
+
+Most people are unable to pinpoint what sets their favorite song apart from the other millions of songs in the world. Despite this uncertainty, however, artists like Drake and Taylor Swift are able to produce numerous top-ten hits -- as if there is some special musical formula that guarantees that a song will become extremely popular. In this project, we attempt to uncover this formula by investigating which factors influence a song's ranking within the Billboard Hot 100.
+
+The dataset we use in our analysis contains every song that appeared in the Billboard Hot 100 from 2000 through 2018 along with a set of 38 possible predictive factors. These factors range from metrics quantifying the song's musical characteristics to the popularity of the artist that created the song.
+
+[results]
+
