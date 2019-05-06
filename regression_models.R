@@ -155,62 +155,95 @@ train_class$Peak.Position <- NULL
 test_class$Peak.Position <- NULL
 sum(train_class$top40) / nrow(train_class)
 
-hist(train_df_2$Peak.Position)
+# Create oversampled training dataset to account for imbalance between top40 and not top40
+
+top40_index <- which(train_class$top40 == 1)
+set.seed(20)
+oversampled_index <- sample(top40_index, sum(train_class$top40 == 0) - sum(train_class$top40 == 1), replace=TRUE)
+train_class_os <- rbind(train_class, train_class[oversampled_index,])
+
+
+
 # Perform logistic regression
 
 library(bestglm)
 
-fit.glm.all <- glm(top40 ~ ., train_class, family='binomial')
-summary(fit.glm.all)
+fit.glm.full <- glm(top40 ~ ., train_class_os, family='binomial')
+summary(fit.glm.full)
+
+
+pred.full.train <- as.numeric(predict(fit.glm.full, train_class_os, type='response') >= 0.5)
+
+mce.full.train <- mean(pred.full.train != train_class_os$top40)
+
+pred.full.test <- as.numeric(predict(fit.glm.all, test_class, type='response') >= 0.5)
+
+mce.full.test <- mean(pred.full.test != test_class$top40)
+
+cm.full <- table(pred.full.test, test_class$top40)
+
+cm.full
+
+cm.full[2,2]/sum(test_class$top40 == "1")
 
 # Prune down the variables to feed into bestglm
-Xy <- model.matrix(top40 ~  danceability + duration_ms + instrumentalness + valence
-                   + Month + Season + artist.pop + trap + metal + country + Year + 
-                    liveness + 0 , train_class) 
 
-Xy <- data.frame(Xy, train_class$top40)
+fit.glm.prune <- glm(top40 ~  acousticness + danceability + energy + liveness +
+                       loudness + rap + rock + artist.pop + trap + indie + metal + country + folk +
+                       funk, train_class_os, family = 'binomial')
 
-# fit.all <- bestglm(Xy, family = binomial, method = "exhaustive", IC="AIC", nvmax = 10)
+summary(fit.glm.prune)
+
+Xy <- model.matrix(top40 ~  acousticness + danceability + energy + liveness +
+                     loudness + rap + rock + artist.pop + trap + indie + metal + country + folk +
+                     funk + 0 , train_class_os) 
+
+
+Xy <- data.frame(Xy, train_class_os$top40)
+
+fit.all <- bestglm(Xy, family = binomial, method = "exhaustive", IC="AIC", nvmax = 15)
 
 fit.all$BestModel
 
-fit.glm <- glm(top40 ~ duration_ms + instrumentalness + Month + artist.pop + Season + country + trap + Year +metal, train_class,
-               family = 'binomial')
-
+fit.glm <- glm(top40 ~ danceability + liveness + rap + liveness + artist.pop + trap + indie +metal + country +
+               folk + funk, train_class_os,  family = 'binomial')
 
 summary(fit.glm)
 
-pred.glm.train <- as.numeric(predict(fit.glm, train_class, type='response') >= 0.2)
+pred.glm.train <- as.numeric(predict(fit.glm, train_class_os, type='response') >= 0.5)
 
-mce.glm.train <- mean(pred.glm.train != train_class$top40)
+mce.glm.train <- mean(pred.glm.train != train_class_os$top40)
 
-pred.glm.test <- as.numeric(predict(fit.glm, test_class, type='response') >= 0.2)
+pred.glm.test <- as.numeric(predict(fit.glm, test_class, type='response') >= 0.5)
 
 mce.glm.test <- mean(pred.glm.test != test_class$top40)
 
 cm.glm <- table(pred.glm.test, test_class$top40)
 cm.glm
 
+cm.glm[2,2]/sum(test_class$top40 == "1")
+
 # Classification tree
 
-tree.class <- rpart(top40 ~ ., train_class)
-pred.tree.train <- as.numeric(predict(tree.class, train_class) >= 0.10)
-mce.tree.train.class <- mean(pred.tree.train != train_class$top40)
+tree.class <- rpart(top40 ~ ., train_class_os)
+pred.tree.train <- as.numeric(predict(tree.class, train_class_os) >= 0.5)
+mce.tree.train.class <- mean(pred.tree.train != train_class_os$top40)
 
-
-pred.tree.test <- as.numeric(predict(tree.class, test_class) >= 0.10)
+pred.tree.test <- as.numeric(predict(tree.class, test_class) >= 0.5)
 mce.tree.test.class <- mean(pred.tree.test != test_class$top40)
+cm.tree <-table(pred.tree.test, test_class$top40)
+cm.tree[2,2]/sum(test_class$top40 == "1")
 
 
 # Classification RF with default mtry
 
 par(mfrow=c(1,1))
 
-fit.rf.class <- randomForest(as.factor(top40) ~ ., train_class, ntree=500) 
+fit.rf.class <- randomForest(as.factor(top40) ~ ., train_class_os, ntree=500) 
 plot(fit.rf.class)
 
-fit.rf.pred.train <- predict(fit.rf.class, train_class, type="response") 
-mce.rf.train <- mean(train_class$top40 != fit.rf.pred.train)
+fit.rf.pred.train <- predict(fit.rf.class, train_class_os, type="response") 
+mce.rf.train <- mean(train_class_os$top40 != fit.rf.pred.train)
 
 fit.rf.pred.test <- predict(fit.rf.class, test_class, type="response") 
 mce.rf.test <- mean(test_class$top40 != fit.rf.pred.test)
@@ -220,34 +253,3 @@ sensitivity <- cm.rf[2,2]/sum(test_class$top40 == "1")
 
 test_df_2[fit.rf.pred.test == "1",]$Peak.Position
 
-
-# Bottom 10 classification
-
-# train_class$bot10 <- as.numeric(train_df_2$Peak.Position >= 90)
-# test_class$bot10 <- as.numeric(test_df_2$Peak.Position >= 90)
-
-# fit.glm.bot <- glm(bot10 ~ duration_ms + instrumentalness + Month + artist.pop + Season + country + trap + Year +metal, train_class,
-#                    family = 'binomial')
-# 
-# 
-# pred.glm.train.bot <- as.numeric(predict(fit.glm, train_class, type='response') >= 0.5)
-# 
-# mce.glm.train.bot <- mean(pred.glm.train.bot != train_class$bot10)
-# 
-# pred.glm.test.bot <- as.numeric(predict(fit.glm, test_class, type='response') >= 0.5)
-# 
-# mce.glm.test.bot <- mean(pred.glm.test.bot != test_class$bot10)
-# 
-# table(pred.glm.test, test_class$bot10)
-# 
-# fit.rf.class <- randomForest(as.factor(bot10) ~ . -top40, train_class, ntree=500) 
-# plot(fit.rf.class)
-# 
-# fit.rf.pred.train <- predict(fit.rf.class, train_class, type="response") 
-# mce.rf.train <- mean(train_class$bot10 != fit.rf.pred.train)
-# 
-# fit.rf.pred.test <- predict(fit.rf.class, test_class, type="response") 
-# mce.rf.test <- mean(test_class$bot10 != fit.rf.pred.test)
-# 
-# cm.rf <- table(fit.rf.pred.test, test_class$bot10)
-# sensitivity <- cm.rf[2,2]/sum(test_class$bot10 == "1")
