@@ -152,3 +152,10 @@ for (idx in 1:nrow(df2000_grouped)) {
 
 df2000.seasons$artist.pop <- artist.pop.list
 write.csv(df2000.seasons, 'df2000_grouped_morefactors.csv')
+
+# Loading Lyrics
+table1 <- read.csv('df2000_withgenre_withyear.csv')
+table2 <- read.csv('df2000_grouped_morefactors_lyrics.csv')
+merged.tb <- merge(table1, table2[, c(2, 3, 4, 23)], by=c("artist", "song", "WeekID"))
+write.csv(merged.tb, 'df2000_final.csv')
+
