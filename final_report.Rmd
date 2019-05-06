@@ -261,6 +261,7 @@ This might seem surprising, but it is likely due to the fact that the "genre" of
 ## Spotify Audio Analysis Variables Density by Peak Position
 
 ```{r, echo=FALSE, warning=FALSE}
+data <- read.csv('df2000_withgenre_withyear.csv')
 ggplot(data, aes(x=acousticness)) + 
   geom_density(data=subset(data, trap==1), aes(color="trap")) +
   geom_density(data=subset(data, indie==1), aes(color="indie")) + 
