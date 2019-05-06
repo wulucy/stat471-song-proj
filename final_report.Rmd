@@ -1,6 +1,6 @@
 ---
 title: "STAT 471 Final Project"
-subtitle: "Determining What Makes a Song Hot or Not"
+subtitle: "\"Hot or Not?\": Predicting Billboard Hot 100 Rankings"
 date: May 5, 2019
 author:
 - Lucy Wu
@@ -33,19 +33,210 @@ header-includes:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(dplyr)
+
+setwd("/Users/lucy/Documents/2019 Spring/STAT471/Final Project")
+data <- read.csv('df2000_withgenre_withyear.csv')
 ```
 
 # Executive Summary
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce eu felis vitae ante maximus vulputate. Integer a vestibulum ipsum. Praesent mollis dolor at quam ullamcorper suscipit. Curabitur id imperdiet est. Mauris commodo iaculis arcu, non mollis nisl pellentesque ac. Nulla tempor pharetra dui. Sed urna ante, ultricies non sagittis non, sollicitudin in ipsum. Vivamus ut sapien id dui gravida pharetra interdum nec metus. Sed tempor vestibulum quam, non porttitor nibh auctor sit amet. Pellentesque imperdiet mauris diam. Ut consectetur sem nec sapien fringilla, vitae venenatis quam lobortis. Suspendisse condimentum, tellus at aliquam scelerisque, leo diam lacinia massa, a ultrices augue elit vel elit.
+Most people are unable to pinpoint what sets their favorite song apart from the other millions of songs in the world. Despite this uncertainty, however, artists like Drake and Taylor Swift are able to produce numerous top-ten hits -- as if there is some special musical formula that guarantees that a song will become extremely popular. In this project, we attempt to uncover this formula by investigating which factors influence a song's ranking within the Billboard Hot 100.
+
+The dataset we use in our analysis contains every song that appeared in the Billboard Hot 100 from 2000 through 2018 along with a set of 36 possible predictive factors. These factors range from metrics quantifying the song's musical characteristics to the popularity of the artist that created the song.
+
+[results]
 
 # Background & Motivation
 
-## Goal of Study
+From the pan flutes of the ancient Greeks to the synthesizer-heavy dance beats of the modern day, humans have been fascinated by music for centuries. Today, music is not only an artistic pursuit, but a major industry: in 2018, the music industry brought in global revenues of over 50 billion USD^[Statista (2018). https://www.statista.com/topics/1639/music/]. The United States in particular plays a major role in the industry, accounting for over 40\% (20 billion USD) of the global revenue.
+
+Clearly, making music has become big business. As such, music professionals -- singers, songwriters, producers, agents, and more -- spend much of their time searching for new talent and/or figuring out how to make a song popular.
+
+One might argue that there isn't one set way to make a song popular; that popularity depends entirely on the fickle ears of the public. While this is certainly true to some extent, there does appear to be some way(s) to reliably produce major hits: the artists Taylor Swift and Drake topped the charts with six top-ten hits each from 2000 through 2018, and Justin Bieber and Lady Gaga came in at a close second with four top-ten hits apiece. Meanwhile, big-name producers like Pharell and Kanye West have had a hand in creating even more.
+
+By studying the factors that influence a song's popularity, we hope to (1) gain insight into characteristics shared among popular songs, and (2) build a model that can predict a newly-released song's popularity.
 
 # Data Overview
 
+Our dataset includes all songs that appeared in the Billboard Hot 100 from 2000 through 2018.
+
+In total, we have 3,320 observations of 40 variables in our dataset. Each observation represents one song. The 40 variables can be grouped into five broad categories as follows:
+
+**Song Metadata:** Non-musical characteristics of the song. 
+
+- `song`: The title of the song. 
+- `artist`: The artist that created the song. 
+- `release_date`: The date the song was released. 
+- `release_season`: The season (fall/winter/summer/spring) the song was released. 
+- `release_year`: The year the song was released. 
+- `artist.pop`: The popularity of the artist, as measured by the number of Billboard Hot 100 hits they had in the three years before the song was released.
+
+**Musical Characteristics:** Simple musical characteristics of the song. These characteristics are `tempo`, `mode`, `key`, `time_signature`, and `duration_ms`; each is self-explanatory. 
+
+**Spotify Audio Analysis Data\:** Complex musical characteristics of the song, as computed by Spotify^[See the [Spotify Web API](https://developer.spotify.com/documentation/web-api/reference/tracks/get-audio-features/).]. 
+
+- `acousticness`: How acoustic the track is (as opposed to electrically amplified). 
+- `danceability`: How suitable the track is for dancing based on measures including its tempo, rhythm stability, beat strength. 
+- `energy`: How intense/active the track is. For example, a Bach prelude has low energy, while Green Day's "American Idiot" has high energy. 
+- `instrumentalness`: How likely the track is to be instrumental (have no words). For example, a symphony would generally have high instrumentalness since it has no words, while a rap song would generally have low instrumentalness. 
+- `liveness`: How likely the track is to be a recording of a live performance. 
+- `loudness`: Average loudness of the track in decibels. 
+- `speechiness`: How speech-like the track is. For example, a podcast would have high speechiness, while an Adele song would have low speechiness. 
+- `valence`: How cheerful the track sounds. For example, the Weeknd's "Often" has low valence, while One Direction's "Live While We're Young" has high valence. 
+
+**Genre**: Genre(s) associated with the song's artist^[Ideally, we would have collected genre for each song. Unfortunately, the Spotify API only provides genre by artist, not by song.] according to Spotify. Since the genres provided by Spotify were extremely granular (with only a few artists in the dataset associated with each genre), we picked a few broader genre categories and categorized each song accordingly. Our broader genre categories are trap, hip-hop, indie, punk, rap, jazz, pop, metal, country, folk, bluegrass, house, rock, classical, and funk. For example, a song associated with "Philly rap" would be categorized as "rap".
+
+**Popularity (target variables)**: The ultimate popularity of the song.
+
+- `peak.position`: Peak position that the song reached on the Billboard Hot 100 (with 1 being most popular, 100 being less popular). 
+- `weeks.on.chart`: Total weeks that the song spent on the Billboard Hot 100 chart. 
+
 # Exploratory Data Analysis (EDA)
+
+First, let us examine our target variable, `Peak.Position`.
+
+```{r, echo=FALSE}
+ggplot(data, aes(x=Peak.Position)) + geom_histogram(binwidth=5) + ggtitle("Peak Position Frequency") + xlab("Peak Position") + ylab("Count")
+```
+
+It looks like relatively few songs in the dataset reach the top 50 compared to the total number of songs that reach top 100. In other words, our dataset is unbalanced with regards to peak position -- we will need to keep this in mind going forward.
+
+Overall, the most popular artists are:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Artist} & \textbf{Number of Top 100 Songs} \\ \hline
+Drake           & 67             \\ \hline
+Taylor Swift    & 48             \\ \hline
+Tim McGraw      & 33             \\ \hline
+Keith Urban     & 29             \\ \hline
+Kenny Chesney   & 27             \\ \hline
+\end{tabular}
+\end{table}
+
+Given that we're predicting a song's popularity in terms of its peak position on the Billboard chart, we might wonder how various factors are correlated with a song's peak position. 
+
+All Spotify audio analysis variables are scaled from 0 to 1 with the exception of loudness, so we plot them together below:
+
+```{r, echo=FALSE}
+data.spotify <- data %>%
+  select(c(Peak.Position, acousticness, danceability, energy, instrumentalness, 
+           liveness, loudness, speechiness, valence)) %>%
+  group_by(`Peak.Position`) %>%
+  summarize(avg.acousticness=mean(acousticness), avg.danceability=mean(danceability), 
+            avg.energy=mean(energy), avg.instrumentalness=mean(instrumentalness),
+            avg.liveness=mean(liveness), avg.loudness=mean(loudness),
+            avg.speechiness=mean(speechiness), avg.valence=mean(valence))
+
+ggplot(data.spotify, aes(x=Peak.Position)) + 
+  geom_line(aes(y=avg.acousticness, color="avg.acousticness")) + 
+  geom_line(aes(y=avg.danceability, color="avg.danceability")) + 
+  geom_line(aes(y=avg.energy, color="avg.energy")) + 
+  geom_line(aes(y=avg.instrumentalness, color="avg.instrumentalness")) + 
+  geom_line(aes(y=avg.liveness, color="avg.liveness")) + 
+#  geom_line(aes(y=avg.loudness, color="avg.loudness")) + 
+  geom_line(aes(y=avg.speechiness, color="avg.speechiness")) + 
+  geom_line(aes(y=avg.valence, color="avg.valence")) +
+  scale_color_discrete(labels = c("Acousticness", "Danceability", "Energy", "Instrumentalness", "Liveness", "Speechiness", "Valence"), name=NULL) +
+  ggtitle("Average Spotify Audio Analysis Values by Peak Position") +
+  xlab("Peak Position") + ylab("Average Audio Analysis Value")
+```
+
+As shown in the plot above, there do not appear to be strong trends relating any Spotify audio analysis to the peak position of a song; each audio analysis variable seems to take roughly constant average values for all peak positions.
+
+We can also plot the one remaining audio analysis variable, loudness:
+
+```{r, echo=FALSE}
+ggplot(data.spotify, aes(x=Peak.Position)) + 
+  geom_line(aes(y=avg.loudness, color="avg.loudness")) +
+  scale_color_discrete(labels = NULL, name=NULL) +
+  ggtitle("Average Loudness by Peak Position") +
+  xlab("Peak Position") + ylab("Average Loudness")
+```
+
+Again, there does not appear to be a clear trend relating peak position and song loudness. There is clearly additional variance in loudness among higher peak positions, but this is likely due to the fewer number of songs with high peak positions.
+
+We might also wonder how genre plays into song popularity.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=Peak.Position)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Peak Position Density by Genre") +
+  xlab("Peak Position") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+It looks like most genres are alike in that most songs within the genre peak at lower positions. However, it seems like songs associated with the rock and country genres tend to take lower peak positions compared to jazz and house music.
+
+We can also examine how peak position changes with season.
+
+```{r, echo=FALSE}
+ggplot(data, aes(x=Season, y=Peak.Position, fill=Season)) + geom_boxplot() +
+  ggtitle("Peak Position by Season") + ylab("Peak Position")
+```
+
+It looks like the distribution of peak positions is roughly the same among all four seasons.
+
+Finally, we will investigate the correlations between the variables in our dataset.
+
+```{r, echo=FALSE}
+data.spotify.pairs <- data %>%
+  select(c(acousticness, danceability, energy, instrumentalness, 
+           liveness, loudness, speechiness, valence))
+
+pairs(data.spotify.pairs, cex=0.1)
+```
+
+It looks like most pairs of Spotify audio analysis variables are not too strongly correlated, with the exception being energy and loudness. In particular, the correlation between energy and loudness is 0.72. Given that the correlation is relatively high, we will remove energy from the model and keep only loudness in order to preserve model interpretability.
+
+We might also expect the Spotify audio analysis variables to be somewhat correlated with the genre.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(data, aes(x=valence)) + 
+  geom_density(data=subset(data, trap==1), aes(color="trap")) +
+  geom_density(data=subset(data, indie==1), aes(color="indie")) + 
+  geom_density(data=subset(data, punk==1), aes(color="punk")) +
+  geom_density(data=subset(data, rap==1), aes(color="rap")) +
+  geom_density(data=subset(data, jazz==1), aes(color="jazz")) +
+  geom_density(data=subset(data, pop==1), aes(color="pop")) +
+  geom_density(data=subset(data, metal==1), aes(color="metal")) +
+  geom_density(data=subset(data, country==1), aes(color="country")) +
+  geom_density(data=subset(data, folk==1), aes(color="folk")) +
+  geom_density(data=subset(data, bluegrass==1), aes(color="bluegrass")) +
+  geom_density(data=subset(data, house==1), aes(color="house")) +
+  geom_density(data=subset(data, rock==1), aes(color="rock")) +
+  geom_density(data=subset(data, classical==1), aes(color="classical")) +
+#  geom_density(data=subset(data, instrumental==1), aes(color="instrumental")) #+
+  geom_density(data=subset(data, funk==1), aes(color="funk")) +
+#  geom_density(data=subset(data, broadway==1), aes(color="broadway"))
+  ggtitle("Valence Density by Genre") +
+  xlab("Valence") + ylab("Density") +
+  theme(legend.title = element_blank())
+```
+
+Above, we see that metal tends to have low valence compared to punk, funk, and country. To conserve space, the plots relating other Spotify audio analysis variables to genre can be found in the appendix. In summary, most audio analysis variables do not seem to take notably different values among different genres. The exceptions are energy, where the punk and pop genres have much higher energy compared to indie music; and danceability, where metal takes far lower values compared to trap.
+
+This might seem surprising, but it is likely due to the fact that the "genre" of a song in our dataset is any genre that the song's artist is associated with. Since some artists create music across multiple genres, the "genre" variable is imprecise.
 
 # Analysis 
 
