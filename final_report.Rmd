@@ -153,17 +153,7 @@ ggplot(data.spotify, aes(x=Peak.Position)) +
 
 As shown in the plot above, there do not appear to be strong trends relating any Spotify audio analysis to the peak position of a song; each audio analysis variable seems to take roughly constant average values for all peak positions.
 
-We can also plot the one remaining audio analysis variable, loudness:
-
-```{r, echo=FALSE}
-ggplot(data.spotify, aes(x=Peak.Position)) + 
-  geom_line(aes(y=avg.loudness, color="avg.loudness")) +
-  scale_color_discrete(labels = NULL, name=NULL) +
-  ggtitle("Average Loudness by Peak Position") +
-  xlab("Peak Position") + ylab("Average Loudness")
-```
-
-Again, there does not appear to be a clear trend relating peak position and song loudness. There is clearly additional variance in loudness among higher peak positions, but this is likely due to the fewer number of songs with high peak positions.
+We can also plot the one remaining audio analysis variable, loudness. We do not include the plot here, but the plot can be found in the Appendix. Again, there does not appear to be a clear trend relating peak position and song loudness. There is clearly additional variance in loudness among higher peak positions, but this is likely due to the fewer number of songs with high peak positions.
 
 We might also wonder how genre plays into song popularity.
 
@@ -265,9 +255,19 @@ Due to time, length, and knowledge constraints, our project faced several limita
 - **Improve genre classification.** In our study, we handpicked fifteen broader genres in which to categorize each subgenre provided by Spotify. Editing these fifteen genres or adding additional genres could improve the predictive power of the `genre` variable. In addition, it would be nice to obtain genre by song rather than by artist. 
 - **Include additional factors relating to the artist.** From a qualitative perspective, much of a song's popularity seems to be related to the fame of the artist. We attempted to capture some of this relationship via the artist popularity variable (which turned out to be significant), but we think it could be useful to include other metrics of artist fame such as number Google mentions or net worth. 
 - **Try other techniques to improve the imbalanced dataset.** As mentioned in previous sections, we faced significant difficulty building our classifier because our target variable was so imbalanced. We attempted to use bagging, boosting, and resampling methods to address this imbalance; in future studies, we would like to try out additional resampling methods and/or try models that adapt to given prior probabilities. 
-- **Try applying a similar models to predict whether a song will be on the Billboard Hot 100 or not.** In this study, we attempted to predict a song's ranking _within_ the Hot 100. However, in reality, all of the Billboard Hot 100 songs are quite popular, so there might not actually be a significant difference between a song in the bottom 60 of the Hot 100 versus the top 40; therefore, it might be difficult or impossible to create a model that accurately predicts a song's ranking within the Hot 100. Using a similar approach to determine whether a song will make it into the Hot 100 or not might yield better results, since there is likely a larger difference between an extremely unpopular song and a song in the Hot 100. 
+- **Try applying similar models to predict whether a song will be on the Billboard Hot 100 or not.** In this study, we attempted to predict a song's ranking _within_ the Hot 100. However, in reality, all of the Billboard Hot 100 songs are quite popular, so there might not actually be a significant difference between a song in the bottom 60 of the Hot 100 versus the top 40; therefore, it might be difficult or impossible to create a model that accurately predicts a song's ranking within the Hot 100. Using a similar approach to determine whether a song will make it into the Hot 100 or not might yield better results, since there is likely a larger difference between an extremely unpopular song and a song in the Hot 100. 
 
 # Appendix
+
+## Plot Loudness
+
+```{r, echo=FALSE}
+ggplot(data.spotify, aes(x=Peak.Position)) + 
+  geom_line(aes(y=avg.loudness, color="avg.loudness")) +
+  scale_color_discrete(labels = NULL, name=NULL) +
+  ggtitle("Average Loudness by Peak Position") +
+  xlab("Peak Position") + ylab("Average Loudness")
+```
 
 ## Spotify Audio Analysis Variables Density by Peak Position
 
@@ -410,7 +410,7 @@ ggplot(data, aes(x=loudness)) +
   theme(legend.title = element_blank())
 ```
 
-```{r, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE, cache=TRUE}
 ggplot(data, aes(x=speechiness)) + 
   geom_density(data=subset(data, trap==1), aes(color="trap")) +
   geom_density(data=subset(data, indie==1), aes(color="indie")) + 
